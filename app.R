@@ -5,7 +5,6 @@ library(scales)
 library(reshape2)
 
 #Data
-setwd("/Users/ASUS/Documents/MyDocs/Courses/Inf/2felev/Infalap2/mortorg_start")
 filenames <- c("Births.csv", "Deaths_1x1.csv", "E0per.csv", "fltper_1x1.csv", "mltper_1x1.csv", "Population.csv", "Countries.csv")
 objectnames <- c("births", "deaths", "E0", "flt", "mlt", "pop", "countries")
 
