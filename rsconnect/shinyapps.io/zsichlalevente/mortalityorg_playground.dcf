@@ -5,9 +5,9 @@ account: zsichlalevente
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 4193900
-bundleId: 4646710
+bundleId: 4695609
 url: https://zsichlalevente.shinyapps.io/mortalityorg_playground/
-when: 1622123453.83919
-lastSyncTime: 1622123453.83919
+when: 1623226323.35369
+lastSyncTime: 1623226323.35369
 asMultiple: FALSE
 asStatic: FALSE
