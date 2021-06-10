@@ -6,8 +6,8 @@ library(reshape2)
 library(shinydlplot)
 
 # Data----
-filenames <- c("Births.csv", "Deaths_1x1.csv", "E0per.csv", "fltper_1x1.csv", "mltper_1x1.csv", "Population.csv", "Countries.csv")
-objectnames <- c("births", "deaths", "E0", "flt", "mlt", "pop", "countries")
+filenames <- c("Births.csv", "Deaths_1x1.csv", "E0per.csv", "fltper_1x1.csv", "mltper_1x1.csv", "Population.csv", "Countries.csv", "worldData.csv", "mapData.csv")
+objectnames <- c("births", "deaths", "E0", "flt", "mlt", "pop", "countries", "world_data", "dem_data")
 
 for (i in 1:length(filenames)) {
   assign(objectnames[i], read.csv(filenames[i], sep = " ", dec = "."))
@@ -24,23 +24,24 @@ dem.matrix <- function(v1, v2) {
   m <- matrix(rep(NA, length(v1) * length(v2)), nrow = length(v1), ncol = length(v2))
   return(m)
 }
-permillion <- function(dem){
-  dem[, c("Total","Male","Female")] <- dem[, c("Total","Male","Female")] * 1e6 / sum(dem$Total)
+permillion <- function(dem) {
+  dem[, c("Total", "Male", "Female")] <- dem[, c("Total", "Male", "Female")] * 1e6 / sum(dem$Total)
   return(dem)
 }
 
 # App UI----
 ui <- navbarPage(
   "Mortality.org Data Exploration App",
-  tabPanel("Description",
-           sidebarLayout(
-             sidebarPanel(
-               p("Contact: Soon...")
-             ),
-             mainPanel(
-               p("Features: Soon...")
-             )
-           )
+  tabPanel(
+    "Description",
+    sidebarLayout(
+      sidebarPanel(
+        p("Contact: Soon...")
+      ),
+      mainPanel(
+        p("Features: Soon...")
+      )
+    )
   ),
   tabPanel(
     "One country visualization",
@@ -63,7 +64,7 @@ ui <- navbarPage(
           column(3, actionButton("play", "Play"))
         ),
         downloadButton("downloadData", "Download selected data"),
-        downloadButton('downloadPlot','Download Graph'),
+        downloadButton("downloadPlot", "Download Graph"),
       ),
       mainPanel(
         plotOutput("popPlot", height = "500px"),
@@ -71,45 +72,61 @@ ui <- navbarPage(
       )
     )
   ),
-  tabPanel("Comparison of 2 countries",
-           sidebarLayout(
-             sidebarPanel(
-               selectInput("plotType21",
-                           "Plot Type:",
-                           choices = c("Age pyramid", "Life expectancy at birth", "Births", "Death pyramid", "Base mortality", "Life expectancy"),
-                           selected = "Age pyramid"
-               ),
-               selectInput("CCode21",
-                           "Country code1:",
-                           choices = countries$code,
-                           selected = "HUN"
-               ),
-               uiOutput("slider21"),
-               selectInput("CCode22",
-                           "Country code2:",
-                           choices = countries$code,
-                           selected = "AUT"
-               ),
-               uiOutput("slider22"),
-               uiOutput("checkbox21"),
-               downloadButton('downloadPlot2','Download Graph'),
-             ),
-             mainPanel(
-               plotOutput("popPlot21", height = "500px")
-             )
-           )
+  tabPanel(
+    "Comparison of 2 countries",
+    sidebarLayout(
+      sidebarPanel(
+        selectInput("plotType21",
+          "Plot Type:",
+          choices = c("Age pyramid", "Life expectancy at birth", "Births", "Death pyramid", "Base mortality", "Life expectancy"),
+          selected = "Age pyramid"
         ),
-  tabPanel("World map",
-           sidebarLayout(
-             sidebarPanel(),
-             mainPanel()
-           )
-        )
+        selectInput("CCode21",
+          "Country code1:",
+          choices = countries$code,
+          selected = "HUN"
+        ),
+        uiOutput("slider21"),
+        selectInput("CCode22",
+          "Country code2:",
+          choices = countries$code,
+          selected = "AUT"
+        ),
+        uiOutput("slider22"),
+        uiOutput("checkbox21"),
+        downloadButton("downloadPlot2", "Download Graph")
+      ),
+      mainPanel(
+        plotOutput("popPlot21", height = "500px")
+      )
+    )
+  ),
+  tabPanel(
+    "World map",
+    sidebarLayout(
+      sidebarPanel(
+        selectInput("plotType3",
+          "Plot Type:",
+          choices = c("Total population", "Total deaths per million", "Male deaths per million", "Female deaths per million", "Male : female ratio", "Male life expectancy", "Female life expectancy", "Life expectancy", "Total births per million", "Male births per million", "Female births per million", "Average age"),
+          selected = "Life expectancy"
+        ),
+        uiOutput("sliderWorld"),
+        fluidRow(
+          column(7, actionButton("stop3", "Stop")),
+          column(3, actionButton("play3", "Play"))
+        ),
+        downloadButton("downloadPlot3", "Download Graph")
+      ),
+      mainPanel(
+        plotOutput("worldMap", height = "500px")
+      )
+    )
+  )
 )
 
 # Server logic----
 server <- function(input, output, session) {
-  #tabPanel1
+  # tabPanel1
   output$slider <- renderUI({
     if (input$plotType %in% c("Age pyramid")) {
       tagList(
@@ -155,15 +172,14 @@ server <- function(input, output, session) {
       tagList(checkboxInput(inputId = "log", label = "Logarithmic scale:"))
     }
   })
-  plotInput11<-function(){
-    
+  plotInput11 <- function() {
     if (input$plotType == "Age pyramid") {
       ggplot(pop[pop$c_code == input$CCode & pop$Year == input$year, ]) +
         geom_col(aes(Age, Male), fill = "dodgerblue", col = "black") +
         geom_col(aes(Age, -Female), fill = "firebrick2", col = "black") +
         coord_flip() +
         theme_bw() +
-        labs(y = "Number of people", x = "Age", title = "Age pyramid") +
+        labs(y = "Number of people", x = "Age", title = paste("Age pyramid", input$CCode, input$year), caption = "Source: The Human Mortality Database") +
         theme(
           axis.text = element_text(size = 15),
           axis.title = element_text(size = 18, face = "bold"),
@@ -178,7 +194,7 @@ server <- function(input, output, session) {
         geom_line(aes(Year, Female, col = "firebrick2"), size = 1.5) +
         geom_line(aes(Year, Total, col = "black"), size = 1.5) +
         theme_bw() +
-        labs(y = "E0", x = "Year", title = "Life expectancy at birth") +
+        labs(y = "E0", x = "Year", title = paste("Life expectancy at birth", input$CCode), caption = "Source: The Human Mortality Database") +
         scale_color_manual(name = "Gender", labels = c("Total", "Male", "Female"), values = c("black", "dodgerblue", "firebrick2")) +
         theme(
           axis.text = element_text(size = 15),
@@ -194,7 +210,7 @@ server <- function(input, output, session) {
         geom_line(aes(Year, Female, col = "firebrick2"), size = 1.5) +
         geom_line(aes(Year, Total, col = "black"), size = 1.5) +
         theme_bw() +
-        labs(y = "Number of births", x = "Year", title = "Births") +
+        labs(y = "Number of births", x = "Year", title = paste("Births", input$CCode), caption = "Source: The Human Mortality Database") +
         scale_color_manual(name = "Gender", labels = c("Total", "Male", "Female"), values = c("black", "dodgerblue", "firebrick2")) +
         theme(
           axis.text = element_text(size = 15),
@@ -210,7 +226,7 @@ server <- function(input, output, session) {
         geom_col(aes(Age, -Female), fill = "firebrick2", col = "black") +
         coord_flip() +
         theme_bw() +
-        labs(y = "Number of people", x = "Age", title = "Age pyramid") +
+        labs(y = "Number of people", x = "Age", title = paste("Death pyramid", input$CCode, input$year), caption = "Source: The Human Mortality Database") +
         theme(
           axis.text = element_text(size = 15),
           axis.title = element_text(size = 18, face = "bold"),
@@ -226,7 +242,7 @@ server <- function(input, output, session) {
         geom_line(data = mlt[mlt$c_code == input$CCode & mlt$Year == input$year, ], aes(x = Age, y = mx, col = "dodgerblue", lty = "dotted"), size = 1.5) +
         geom_line(data = flt[flt$c_code == input$CCode & flt$Year == input$year, ], aes(x = Age, y = mx, col = "firebrick2", lty = "dotted"), size = 1.5) +
         theme_bw() +
-        labs(y = "Base mortality", x = "Age", title = "Base mortality") +
+        labs(y = "Base mortality", x = "Age", title = paste("Base mortality", input$CCode, input$year), caption = "Source: The Human Mortality Database") +
         scale_color_manual(name = "Gender", labels = c("Male", "Female"), values = c("dodgerblue", "firebrick2")) +
         scale_linetype_manual(name = "Method", labels = c("mx", "qx"), values = c("dotted", "solid")) +
         theme(
@@ -249,7 +265,7 @@ server <- function(input, output, session) {
         geom_line(data = mlt[mlt$c_code == input$CCode & mlt$Year == input$year, ], aes(x = Age, y = ex, col = "dodgerblue"), size = 1.5) +
         geom_line(data = flt[flt$c_code == input$CCode & flt$Year == input$year, ], aes(x = Age, y = ex, col = "firebrick2"), size = 1.5) +
         theme_bw() +
-        labs(y = "Base mortality", x = "Age", title = "Base mortality") +
+        labs(y = "Base mortality", x = "Age", title = paste("Base mortality", input$CCode, input$year), caption = "Source: The Human Mortality Database") +
         scale_color_manual(name = "Gender", labels = c("Male", "Female"), values = c("dodgerblue", "firebrick2")) +
         theme(
           axis.text = element_text(size = 15),
@@ -260,27 +276,27 @@ server <- function(input, output, session) {
           legend.text = element_text(size = 14)
         )
     } else if (input$plotType == "Frailty matrix") {
-      
+
       # Main code
       CCode <- input$CCode
       year <- input$year
-      
+
       # Filtered tibble
       dem <- pop %>%
         filter(c_code == CCode & Year == year) %>%
         inner_join(filter(mlt, c_code == CCode & Year == year), by = c("Age" = "Age")) %>%
         inner_join(filter(flt, c_code == CCode & Year == year), by = c("Age" = "Age")) %>%
         select(Age, Males = Male, Females = Female, Total, mort.Males = qx.x, mort.Females = qx.y)
-      
+
       age <- min(dem$Age):max(dem$Age)
       YPL <- age
-      
+
       frailty_matrix_male <- dem.matrix(YPL, age)
       frailty_matrix_female <- dem.matrix(YPL, age)
-      
+
       frailty_matrix_male[1, ] <- dem$Males * dem$mort.Males
       frailty_matrix_female[1, ] <- dem$Females * dem$mort.Females
-      
+
       for (R in 2:length(YPL)) {
         for (C in 1:length(age)) {
           if ((C + R - 1) > length(dem$Age)) {
@@ -292,14 +308,14 @@ server <- function(input, output, session) {
           }
         }
       }
-      
+
       frailty_matrix_tot <- melt(t(frailty_matrix_male) + t(frailty_matrix_female))
       colnames(frailty_matrix_tot) <- c("Age", "YPL", "value")
-      
+
       ggplot(data = frailty_matrix_tot, aes(x = (Age + age[1] - 1), y = (YPL - 1))) +
         geom_raster(aes(fill = value)) +
         theme_bw() +
-        labs(x = "Age", y = "YPL", title = "Age-YPL matrix", fill = "") +
+        labs(x = "Age", y = "YPL", title = paste("Age-YPL matrix", input$CCode, input$year), fill = "", caption = "Source: The Human Mortality Database") +
         theme(
           axis.text = element_text(size = 15),
           axis.title = element_text(size = 18, face = "bold"),
@@ -316,40 +332,39 @@ server <- function(input, output, session) {
       point_male <- c(input$Mx, input$My)
       point_female <- c(input$Fx, input$Fy)
       reg_interval <- input$interval[1]:input$interval[2]
-      
+
       # Filtered tibble
       dem <- pop %>%
         filter(c_code == CCode & Year == year) %>%
         inner_join(filter(mlt, c_code == CCode & Year == year), by = c("Age" = "Age")) %>%
         inner_join(filter(flt, c_code == CCode & Year == year), by = c("Age" = "Age")) %>%
         select(Age, Total, Males = Male, Females = Female, mort.Males = qx.x, mort.Females = qx.y)
-      
+
       reg_male <- lm(log(dem$mort.Males[reg_interval + 1]) ~ dem$Age[reg_interval + 1])
       reg_female <- lm(log(dem$mort.Females[reg_interval + 1]) ~ dem$Age[reg_interval + 1])
-      
+
       steepness_male <- tan(deg2rad(90 - (90 - rad2deg(atan(reg_male$coefficients[2])) - 1)))
       steepness_female <- tan(deg2rad(90 - (90 - rad2deg(atan(reg_female$coefficients[2])) - 0.7)))
-      
+
       intercept_male <- -1 * (steepness_male * point_male[1]) + point_male[2]
       intercept_female <- -1 * (steepness_female * point_female[1]) + point_female[2]
-      
+
       internal_male_20_60 <- steepness_male * 20:60 + intercept_male
       internal_female_20_60 <- steepness_female * 20:60 + intercept_female
-      
+
       par(mar = c(4.1, 5.1, 3.1, 1.1))
-      plot(dem$Age, log(dem$mort.Males), pch = 16, cex = 1.3, xlab = "Age", ylab = "log(Mortality)", main = "Males", cex.lab = 2, cex.axis = 2, cex.main = 2)
+      plot(dem$Age, log(dem$mort.Males), pch = 16, cex = 1.3, xlab = "Age", ylab = "log(Mortality)", main = paste("Males", input$CCode, input$year), cex.lab = 2, cex.axis = 2, cex.main = 2)
       abline(a = intercept_male, b = steepness_male, lwd = 2, col = "blue")
       points(20:60, internal_male_20_60, pch = 16, col = "blue", cex = 1.3)
       abline(a = reg_male$coefficients[1], b = reg_male$coefficients[2], lwd = 2)
       points(point_male[1], point_male[2], cex = 3, pch = 18, col = "purple")
     }
-    
   }
   output$popPlot <- renderPlot(plotInput11(),
     height = 500,
     width = "auto"
   )
-  plotInput12<-function(){
+  plotInput12 <- function() {
     if (input$plotType == "Internal mortality") {
       # Main code
       CCode <- input$CCode
@@ -357,34 +372,33 @@ server <- function(input, output, session) {
       point_male <- c(input$Mx, input$My)
       point_female <- c(input$Fx, input$Fy)
       reg_interval <- input$interval[1]:input$interval[2]
-      
+
       # Filtered tibble
       dem <- pop %>%
         filter(c_code == CCode & Year == year) %>%
         inner_join(filter(mlt, c_code == CCode & Year == year), by = c("Age" = "Age")) %>%
         inner_join(filter(flt, c_code == CCode & Year == year), by = c("Age" = "Age")) %>%
         select(Age, Total, Males = Male, Females = Female, mort.Males = qx.x, mort.Females = qx.y)
-      
+
       reg_male <- lm(log(dem$mort.Males[reg_interval + 1]) ~ dem$Age[reg_interval + 1])
       reg_female <- lm(log(dem$mort.Females[reg_interval + 1]) ~ dem$Age[reg_interval + 1])
-      
+
       steepness_male <- tan(deg2rad(90 - (90 - rad2deg(atan(reg_male$coefficients[2])) - 1)))
       steepness_female <- tan(deg2rad(90 - (90 - rad2deg(atan(reg_female$coefficients[2])) - 0.7)))
-      
+
       intercept_male <- -1 * (steepness_male * point_male[1]) + point_male[2]
       intercept_female <- -1 * (steepness_female * point_female[1]) + point_female[2]
-      
+
       internal_male_20_60 <- steepness_male * 20:60 + intercept_male
       internal_female_20_60 <- steepness_female * 20:60 + intercept_female
-      
+
       par(mar = c(4.1, 5.1, 3.1, 1.1))
-      plot(dem$Age, log(dem$mort.Females), pch = 16, cex = 1.3, xlab = "Age", ylab = "log(Mortality)", main = "Females", cex.lab = 2, cex.axis = 2, cex.main = 2)
+      plot(dem$Age, log(dem$mort.Females), pch = 16, cex = 1.3, xlab = "Age", ylab = "log(Mortality)", main = paste("Females", input$CCode, input$year), cex.lab = 2, cex.axis = 2, cex.main = 2)
       abline(a = intercept_female, b = steepness_female, lwd = 2, col = "red")
       points(20:60, internal_female_20_60, pch = 16, col = "red", cex = 1.3)
       abline(a = reg_female$coefficients[1], b = reg_female$coefficients[2], lwd = 2)
       points(point_female[1], point_female[2], cex = 3, pch = 18, col = "purple")
     }
-    
   }
   output$popPlot2 <- renderPlot(plotInput12(),
     height = 500,
@@ -531,11 +545,14 @@ server <- function(input, output, session) {
       }
     },
     content <- function(file) {
-      png(file, width = 1000, height = 750,units="px", pointsize = 12,
-          bg = "white", res = NA)
-      plot1<-plotInput11()
+      png(file,
+        width = 4000, height = 3000, units = "px",
+        bg = "white", res = 400
+      )
+      plot1 <- plotInput11()
       print(plot1)
-      dev.off()},
+      dev.off()
+    },
     contentType = "image/png",
   )
   session2 <- reactiveValues()
@@ -583,8 +600,8 @@ server <- function(input, output, session) {
   observeEvent(input$stop, {
     session2$timer <- reactiveTimer(Inf)
   })
-  
-  #tabPanel2
+
+  # tabPanel2
   output$slider21 <- renderUI({
     if (input$plotType21 %in% c("Age pyramid")) {
       tagList(
@@ -646,14 +663,14 @@ server <- function(input, output, session) {
           value = max(filter(mlt, c_code == input$CCode22)$Year), step = 1
         )
       )
-    }else if (input$plotType21 %in% c("Base mortality")) {
+    } else if (input$plotType21 %in% c("Base mortality")) {
       tagList(
         sliderInput(
           inputId = "year22", label = "Year:",
           min = min(filter(mlt, c_code == input$CCode22)$Year), max = max(filter(mlt, c_code == input$CCode22)$Year),
           value = max(filter(mlt, c_code == input$CCode22)$Year), step = 1
         ),
-        radioButtons(inputId="method", label="Mortality calculation method:",choices=c("Qx" = "qx","Mx" = "mx"),selected = "qx")
+        radioButtons(inputId = "method", label = "Mortality calculation method:", choices = c("Qx" = "qx", "Mx" = "mx"), selected = "qx")
       )
     }
   })
@@ -662,27 +679,37 @@ server <- function(input, output, session) {
       tagList(checkboxInput(inputId = "log21", label = "Logarithmic scale:"))
     }
   })
-  plotInput21<-function(){
+  plotInput21 <- function() {
     if (input$plotType21 == "Age pyramid") {
-      dem1<-pop[pop$c_code == input$CCode21 & pop$Year == input$year21, ]
-      dem2<-pop[pop$c_code == input$CCode22 & pop$Year == input$year22, ]
+      dem1 <- pop[pop$c_code == input$CCode21 & pop$Year == input$year21, ]
+      dem2 <- pop[pop$c_code == input$CCode22 & pop$Year == input$year22, ]
+      legendVector <- c(paste(input$CCode22, input$year22, "- female"), paste(input$CCode22, input$year22, "- male"), paste(input$CCode21, input$year21, "- female"), paste(input$CCode21, input$year21, "- male"))
       ggplot() +
-        geom_col(data=permillion(dem2),
-                 aes(Age, Male+Female, fill = "Country2 - female"), col = "black") +
-        geom_col(data=permillion(dem2),
-                 aes(Age, Male, fill = "Country2 - male"), col = "black") +
-        geom_col(data=permillion(dem1),
-                 aes(Age, -(Male+Female), fill = "Country1 - female"), col = "black") +
-        geom_col(data=permillion(dem1),
-                 aes(Age, -(Male), fill = "Country1 - male"), col = "black") +
+        geom_col(
+          data = permillion(dem2),
+          aes(Age, Male + Female, fill = legendVector[1]), col = "black"
+        ) +
+        geom_col(
+          data = permillion(dem2),
+          aes(Age, Male, fill = legendVector[2]), col = "black"
+        ) +
+        geom_col(
+          data = permillion(dem1),
+          aes(Age, -(Male + Female), fill = legendVector[3]), col = "black"
+        ) +
+        geom_col(
+          data = permillion(dem1),
+          aes(Age, -(Male), fill = legendVector[4]), col = "black"
+        ) +
         scale_fill_manual("Legend",
-                          values=c("Country1 - female"="firebrick1",
-                                   "Country1 - male"= "dodgerblue",
-                                   "Country2 - female"= "firebrick3",
-                                   "Country2 - male"="deepskyblue3"))+
+          values = setNames(
+            c("firebrick1", "dodgerblue", "firebrick3", "deepskyblue3"),
+            legendVector
+          )
+        ) +
         coord_flip() +
         theme_bw() +
-        labs(y = "Number of people", x = "Age", title = "Age pyramid [/1M people]") +
+        labs(y = "Number of people", x = "Age", title = "Age pyramid [/1M people]", caption = "Source: The Human Mortality Database") +
         theme(
           axis.text = element_text(size = 15),
           axis.title = element_text(size = 18, face = "bold"),
@@ -692,21 +719,22 @@ server <- function(input, output, session) {
           legend.text = element_text(size = 14)
         )
     } else if (input$plotType21 == "Life expectancy at birth") {
-      ggplot(data=E0[E0$c_code == input$CCode21, ]) +
-        geom_line(aes(Year, Male, col = "Country1 - male"), size = 1.5) +
-        geom_line(aes(Year, Female, col = "Country1 - female"), size = 1.5) +
-        geom_line(aes(Year, Total, col = "Country1 - both"), size = 1.5) +
-        geom_line(data=E0[E0$c_code == input$CCode22, ],aes(Year, Male, col = "Country2 - male"), size = 1.5) +
-        geom_line(data=E0[E0$c_code == input$CCode22, ],aes(Year, Female, col = "Country2 - female"), size = 1.5) +
-        geom_line(data=E0[E0$c_code == input$CCode22, ],aes(Year, Total, col = "Country2 - both"), size = 1.5) +
+      legendVector <- c(paste(input$CCode21, input$year21, "- female"), paste(input$CCode21, input$year21, "- male"), paste(input$CCode21, input$year21, "- both"), paste(input$CCode22, input$year22, "- female"), paste(input$CCode22, input$year22, "- male"), paste(input$CCode22, input$year22, "- both"))
+      ggplot(data = E0[E0$c_code == input$CCode21, ]) +
+        geom_line(aes(Year, Male, col = legendVector[2]), size = 1.5) +
+        geom_line(aes(Year, Female, col = legendVector[1]), size = 1.5) +
+        geom_line(aes(Year, Total, col = legendVector[3]), size = 1.5) +
+        geom_line(data = E0[E0$c_code == input$CCode22, ], aes(Year, Male, col = legendVector[5]), size = 1.5) +
+        geom_line(data = E0[E0$c_code == input$CCode22, ], aes(Year, Female, col = legendVector[4]), size = 1.5) +
+        geom_line(data = E0[E0$c_code == input$CCode22, ], aes(Year, Total, col = legendVector[6]), size = 1.5) +
         theme_bw() +
-        labs(y = "E0", x = "Year", title = "Life expectancy at birth") +
-        scale_color_manual(name = "Country & Gender", values=c("Country1 - female"="firebrick1",
-                                                               "Country1 - male"= "dodgerblue",
-                                                               "Country1 - both"= "gray",
-                                                               "Country2 - male"="blue4",
-                                                               "Country2 - female"= "firebrick4",
-                                                               "Country2 - both"="black")) +
+        labs(y = "E0", x = "Year", title = "Life expectancy at birth", caption = "Source: The Human Mortality Database") +
+        scale_color_manual("Country & Gender",
+          values = setNames(
+            c("firebrick1", "dodgerblue", "gray", "firebrick4", "blue4", "black"),
+            legendVector
+          )
+        ) +
         theme(
           axis.text = element_text(size = 15),
           axis.title = element_text(size = 18, face = "bold"),
@@ -716,23 +744,24 @@ server <- function(input, output, session) {
           legend.text = element_text(size = 14)
         )
     } else if (input$plotType21 == "Births") {
-      b1pm<-permillion(births[births$c_code == input$CCode21, ])
-      b2pm<-permillion(births[births$c_code == input$CCode22, ])
-      ggplot(data=b1pm) +
-        geom_line(aes(Year, Male, col = "Country1 - male"), size = 1.5) +
-        geom_line(aes(Year, Female, col = "Country1 - female"), size = 1.5) +
-        geom_line(aes(Year, Total, col = "Country1 - both"), size = 1.5) +
-        geom_line(data=b2pm,aes(Year, Male, col = "Country2 - male"), size = 1.5) +
-        geom_line(data=b2pm,aes(Year, Female, col = "Country2 - female"), size = 1.5) +
-        geom_line(data=b2pm,aes(Year, Total, col = "Country2 - both"), size = 1.5) +
+      b1pm <- permillion(births[births$c_code == input$CCode21, ])
+      b2pm <- permillion(births[births$c_code == input$CCode22, ])
+      legendVector <- c(paste(input$CCode21, input$year21, "- female"), paste(input$CCode21, input$year21, "- male"), paste(input$CCode21, input$year21, "- both"), paste(input$CCode22, input$year22, "- female"), paste(input$CCode22, input$year22, "- male"), paste(input$CCode22, input$year22, "- both"))
+      ggplot(data = b1pm) +
+        geom_line(aes(Year, Male, col = legendVector[2]), size = 1.5) +
+        geom_line(aes(Year, Female, col = legendVector[1]), size = 1.5) +
+        geom_line(aes(Year, Total, col = legendVector[3]), size = 1.5) +
+        geom_line(data = b2pm, aes(Year, Male, col = legendVector[5]), size = 1.5) +
+        geom_line(data = b2pm, aes(Year, Female, col = legendVector[4]), size = 1.5) +
+        geom_line(data = b2pm, aes(Year, Total, col = legendVector[6]), size = 1.5) +
         theme_bw() +
-        labs(y = "Number of births", x = "Year", title = "Births [/1M people]") +
-        scale_color_manual(name = "Country & Gender", values=c("Country1 - female"="firebrick1",
-                                                               "Country1 - male"= "dodgerblue",
-                                                               "Country1 - both"= "gray",
-                                                               "Country2 - male"="blue4",
-                                                               "Country2 - female"= "firebrick4",
-                                                               "Country2 - both"="black")) +
+        labs(y = "Number of births", x = "Year", title = "Births [/1M people]", caption = "Source: The Human Mortality Database") +
+        scale_color_manual("Country & Gender",
+          values = setNames(
+            c("firebrick1", "dodgerblue", "gray", "firebrick4", "blue4", "black"),
+            legendVector
+          )
+        ) +
         theme(
           axis.text = element_text(size = 15),
           axis.title = element_text(size = 18, face = "bold"),
@@ -742,25 +771,35 @@ server <- function(input, output, session) {
           legend.text = element_text(size = 14)
         )
     } else if (input$plotType21 == "Death pyramid") {
-      dem1<-deaths[deaths$c_code == input$CCode21 & deaths$Year == input$year21, ]
-      dem2<-deaths[deaths$c_code == input$CCode22 & deaths$Year == input$year22, ]
+      dem1 <- deaths[deaths$c_code == input$CCode21 & deaths$Year == input$year21, ]
+      dem2 <- deaths[deaths$c_code == input$CCode22 & deaths$Year == input$year22, ]
+      legendVector <- c(paste(input$CCode22, input$year22, "- female"), paste(input$CCode22, input$year22, "- male"), paste(input$CCode21, input$year21, "- female"), paste(input$CCode21, input$year21, "- male"))
       ggplot() +
-        geom_col(data=permillion(dem2),
-                 aes(Age, Male+Female, fill = "Country2 - female"), col = "black") +
-        geom_col(data=permillion(dem2),
-                 aes(Age, Male, fill = "Country2 - male"), col = "black") +
-        geom_col(data=permillion(dem1),
-                 aes(Age, -(Male+Female), fill = "Country1 - female"), col = "black") +
-        geom_col(data=permillion(dem1),
-                 aes(Age, -(Male), fill = "Country1 - male"), col = "black") +
+        geom_col(
+          data = permillion(dem2),
+          aes(Age, Male + Female, fill = legendVector[1]), col = "black"
+        ) +
+        geom_col(
+          data = permillion(dem2),
+          aes(Age, Male, fill = legendVector[2]), col = "black"
+        ) +
+        geom_col(
+          data = permillion(dem1),
+          aes(Age, -(Male + Female), fill = legendVector[3]), col = "black"
+        ) +
+        geom_col(
+          data = permillion(dem1),
+          aes(Age, -(Male), fill = legendVector[4]), col = "black"
+        ) +
         scale_fill_manual("Legend",
-                          values=c("Country1 - female"="firebrick1",
-                                   "Country1 - male"= "dodgerblue",
-                                   "Country2 - female"= "firebrick3",
-                                   "Country2 - male"="deepskyblue3"))+
+          values = setNames(
+            c("firebrick1", "dodgerblue", "firebrick3", "deepskyblue3"),
+            legendVector
+          )
+        ) +
         coord_flip() +
         theme_bw() +
-        labs(y = "Number of people", x = "Age", title = "Death pyramid [/1M people]") +
+        labs(y = "Number of people", x = "Age", title = "Death pyramid [/1M people]", caption = "Source: The Human Mortality Database") +
         theme(
           axis.text = element_text(size = 15),
           axis.title = element_text(size = 18, face = "bold"),
@@ -770,30 +809,33 @@ server <- function(input, output, session) {
           legend.text = element_text(size = 14)
         )
     } else if (input$plotType21 == "Base mortality") {
-      mlt1<-mlt[mlt$c_code == input$CCode21 & mlt$Year == input$year21, ]
-      flt1<-flt[flt$c_code == input$CCode21 & flt$Year == input$year21, ]
-      mlt2<-mlt[mlt$c_code == input$CCode22 & mlt$Year == input$year22, ]
-      flt2<-flt[flt$c_code == input$CCode22 & flt$Year == input$year22, ]
-      if(input$method=="mx"){
+      mlt1 <- mlt[mlt$c_code == input$CCode21 & mlt$Year == input$year21, ]
+      flt1 <- flt[flt$c_code == input$CCode21 & flt$Year == input$year21, ]
+      mlt2 <- mlt[mlt$c_code == input$CCode22 & mlt$Year == input$year22, ]
+      flt2 <- flt[flt$c_code == input$CCode22 & flt$Year == input$year22, ]
+      legendVector <- c(paste(input$CCode21, input$year21, "- female"), paste(input$CCode21, input$year21, "- male"), paste(input$CCode22, input$year22, "- female"), paste(input$CCode22, input$year22, "- male"))
+      if (input$method == "mx") {
         myPlot <- ggplot() +
-          geom_line(data = mlt1 , aes(x = Age, y = mx, col = "Country1 - male"), size = 1.5) +
-          geom_line(data = flt1, aes(x = Age, y = mx, col = "Country1 - female"), size = 1.5)+
-          geom_line(data = mlt2 , aes(x = Age, y = mx, col = "Country2 - male"), size = 1.5) +
-          geom_line(data = flt2, aes(x = Age, y = mx, col = "Country2 - female"), size = 1.5)
-      }else{
+          geom_line(data = mlt1, aes(x = Age, y = mx, col = legendVector[2]), size = 1.5) +
+          geom_line(data = flt1, aes(x = Age, y = mx, col = legendVector[1]), size = 1.5) +
+          geom_line(data = mlt2, aes(x = Age, y = mx, col = legendVector[4]), size = 1.5) +
+          geom_line(data = flt2, aes(x = Age, y = mx, col = legendVector[3]), size = 1.5)
+      } else {
         myPlot <- ggplot() +
-          geom_line(data = mlt1 , aes(x = Age, y = qx, col = "Country1 - male"), size = 1.5) +
-          geom_line(data = flt1, aes(x = Age, y = qx, col = "Country1 - female"), size = 1.5)+
-          geom_line(data = mlt2 , aes(x = Age, y = qx, col = "Country2 - male"), size = 1.5) +
-          geom_line(data = flt2, aes(x = Age, y = qx, col = "Country2 - female"), size = 1.5)
+          geom_line(data = mlt1, aes(x = Age, y = qx, col = legendVector[2]), size = 1.5) +
+          geom_line(data = flt1, aes(x = Age, y = qx, col = legendVector[1]), size = 1.5) +
+          geom_line(data = mlt2, aes(x = Age, y = qx, col = legendVector[4]), size = 1.5) +
+          geom_line(data = flt2, aes(x = Age, y = qx, col = legendVector[3]), size = 1.5)
       }
-      myPlot<-myPlot+
+      myPlot <- myPlot +
         theme_bw() +
-        labs(y = "Base mortality", x = "Age", title = "Base mortality") +
-        scale_color_manual(name = "Country & Gender",values = c("Country1 - male"="dodgerblue", 
-                                                                "Country1 - female"="firebrick2",
-                                                                "Country2 - male"="blue4",
-                                                                "Country2 - female"="red4")) +
+        labs(y = "Base mortality", x = "Age", title = "Base mortality", caption = "Source: The Human Mortality Database") +
+        scale_color_manual("Country & Gender",
+          values = setNames(
+            c("firebrick1", "dodgerblue", "firebrick4", "blue4"),
+            legendVector
+          )
+        ) +
         theme(
           axis.text = element_text(size = 15),
           axis.title = element_text(size = 18, face = "bold"),
@@ -810,21 +852,24 @@ server <- function(input, output, session) {
       }
       myPlot
     } else if (input$plotType21 == "Life expectancy") {
-      mlt1<-mlt[mlt$c_code == input$CCode21 & mlt$Year == input$year21, ]
-      flt1<-flt[flt$c_code == input$CCode21 & flt$Year == input$year21, ]
-      mlt2<-mlt[mlt$c_code == input$CCode22 & mlt$Year == input$year22, ]
-      flt2<-flt[flt$c_code == input$CCode22 & flt$Year == input$year22, ]
+      mlt1 <- mlt[mlt$c_code == input$CCode21 & mlt$Year == input$year21, ]
+      flt1 <- flt[flt$c_code == input$CCode21 & flt$Year == input$year21, ]
+      mlt2 <- mlt[mlt$c_code == input$CCode22 & mlt$Year == input$year22, ]
+      flt2 <- flt[flt$c_code == input$CCode22 & flt$Year == input$year22, ]
+      legendVector <- c(paste(input$CCode21, input$year21, "- female"), paste(input$CCode21, input$year21, "- male"), paste(input$CCode22, input$year22, "- female"), paste(input$CCode22, input$year22, "- male"))
       ggplot() +
-        geom_line(data = mlt1 , aes(x = Age, y = ex, col = "Country1 - male"), size = 1.5) +
-        geom_line(data = flt1, aes(x = Age, y = ex, col = "Country1 - female"), size = 1.5)+
-        geom_line(data = mlt2 , aes(x = Age, y = ex, col = "Country2 - male"), size = 1.5) +
-        geom_line(data = flt2, aes(x = Age, y = ex, col = "Country2 - female"), size = 1.5)+
+        geom_line(data = mlt1, aes(x = Age, y = ex, col = legendVector[2]), size = 1.5) +
+        geom_line(data = flt1, aes(x = Age, y = ex, col = legendVector[1]), size = 1.5) +
+        geom_line(data = mlt2, aes(x = Age, y = ex, col = legendVector[4]), size = 1.5) +
+        geom_line(data = flt2, aes(x = Age, y = ex, col = legendVector[3]), size = 1.5) +
         theme_bw() +
-        labs(y = "Base mortality", x = "Age", title = "Base mortality") +
-        scale_color_manual(name = "Country & Gender",values = c("Country1 - male"="dodgerblue", 
-                                                                "Country1 - female"="firebrick2",
-                                                                "Country2 - male"="blue4",
-                                                                "Country2 - female"="red4")) +
+        labs(y = "Base mortality", x = "Age", title = "Base mortality", caption = "Source: The Human Mortality Database") +
+        scale_color_manual("Country & Gender",
+          values = setNames(
+            c("firebrick1", "dodgerblue", "firebrick4", "blue4"),
+            legendVector
+          )
+        ) +
         theme(
           axis.text = element_text(size = 15),
           axis.title = element_text(size = 18, face = "bold"),
@@ -845,9 +890,9 @@ server <- function(input, output, session) {
       if (input$plotType21 == "Age pyramid") {
         paste("pop_", input$CCode21, "_", str_sub(input$year21, -2), input$CCode22, "_", str_sub(input$year22, -2), ".png", sep = "")
       } else if (input$plotType21 == "Life expectancy at birth") {
-        paste("e0_", input$CCode21,"_", input$CCode22, ".png", sep = "")
+        paste("e0_", input$CCode21, "_", input$CCode22, ".png", sep = "")
       } else if (input$plotType21 == "Births") {
-        paste("births_", input$CCode21,"_", input$CCode22, ".png", sep = "")
+        paste("births_", input$CCode21, "_", input$CCode22, ".png", sep = "")
       } else if (input$plotType21 == "Death pyramid") {
         paste("deaths_", input$CCode21, "_", str_sub(input$year21, -2), input$CCode22, "_", str_sub(input$year22, -2), ".png", sep = "")
       } else if (input$plotType21 == "Base mortality") {
@@ -857,14 +902,145 @@ server <- function(input, output, session) {
       }
     },
     content <- function(file) {
-      png(file, width = 1000, height = 750,units="px", pointsize = 12,
-          bg = "white", res = NA)
-      plot1<-plotInput21()
+      png(file,
+        width = 4000, height = 3000, units = "px",
+        bg = "white", res = 400
+      )
+      plot1 <- plotInput21()
       print(plot1)
-      dev.off()},
+      dev.off()
+    },
     contentType = "image/png",
   )
 
+  # tabPanel3
+  output$sliderWorld <- renderUI({
+    tagList(
+      sliderInput(
+        inputId = "yearWorld", label = "Year:",
+        min = min(dem_data$Year), max = max(dem_data$Year),
+        value = max(dem_data$Year), step = 1
+      )
+    )
+  })
+  worldMaps <- function(df, world_data, plotType, year) {
+    if (plotType == "Total population") {
+      data_type <- "pTot"
+    } else if (plotType == "Total deaths per million") {
+      data_type <- "dPermillTotal"
+    } else if (plotType == "Male deaths per million") {
+      data_type <- "dPermillMale"
+    } else if (plotType == "Female deaths per million") {
+      data_type <- "dPermillFemale"
+    } else if (plotType == "Male : female ratio") {
+      data_type <- "genderRatio"
+    } else if (plotType == "Male life expectancy") {
+      data_type <- "ExMal"
+    } else if (plotType == "Female life expectancy") {
+      data_type <- "exFem"
+    } else if (plotType == "Life expectancy") {
+      data_type <- "exTot"
+    } else if (plotType == "Total births per million") {
+      data_type <- "bPermillTotal"
+    } else if (plotType == "Male births per million") {
+      data_type <- "bPermillMale"
+    } else if (plotType == "Female births per million") {
+      data_type <- "bPermillFemale"
+    } else if (plotType == "Average age") {
+      data_type <- "avAge"
+    }
+    # Function for setting the aesthetics of the plot
+    my_theme <- function() {
+      theme_bw() + theme(
+        plot.title = element_text(size = 20),
+        axis.title = element_text(size = 14),
+        strip.text = element_text(size = 14),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        legend.position = "bottom",
+        panel.border = element_blank(),
+        strip.background = element_rect(fill = "white", colour = "white"),
+        legend.title = element_text(size = 14)
+      )
+    }
+
+    # Select only the data that the user has selected to view
+    plotdf <- df[df$dataType == data_type & df$Year == year, ]
+    plotdf <- plotdf[!is.na(plotdf$c_code), ]
+
+    # Add the data the user wants to see to the geographical world data
+    world_data["DataType"] <- rep(data_type, nrow(world_data))
+    world_data["Year"] <- rep(year, nrow(world_data))
+    world_data["Value"] <- plotdf$data[match(world_data$ISO3, plotdf$c_code)]
+
+    # Create caption with the data source to show underneath the map
+    capt <- "Source: The Human Mortality Database & World Bank"
+
+    # Specify the plot for the world map
+    library(RColorBrewer)
+    library(ggiraph)
+    g <- ggplot() +
+      geom_polygon_interactive(
+        data = world_data, color = "gray70", size = 0.1,
+        aes(
+          x = long, y = lat, fill = Value, group = group,
+          tooltip = sprintf("%s<br/>%s", ISO3, Value)
+        )
+      ) +
+      scale_fill_gradientn(colours = brewer.pal(5, "RdYlGn"), na.value = "gray") +
+      scale_y_continuous(limits = c(-60, 90), breaks = c()) +
+      scale_x_continuous(breaks = c()) +
+      labs(fill = data_type, color = data_type, title = paste(plotType, year), x = NULL, y = NULL, caption = capt) +
+      my_theme()
+
+    return(g)
+  }
+  output$worldMap <- renderPlot(worldMaps(dem_data, world_data, input$plotType3, input$yearWorld),
+    height = 500,
+    width = "auto"
+  )
+  output$downloadPlot3 <- downloadHandler(
+    filename <- function() {
+      paste("map", input$plotType3, input$yearWorld, ".png")
+    },
+    content <- function(file) {
+      png(file,
+        width = 5000, height = 3000, units = "px",
+        bg = "white", res = 600
+      )
+      plot1 <- worldMaps(dem_data, world_data, input$plotType3, input$yearWorld)
+      print(plot1)
+      dev.off()
+    },
+    contentType = "image/png",
+  )
+  session3 <- reactiveValues()
+  session3$timer <- reactiveTimer(Inf)
+  getNextYear3 <- function() {
+    if (input$yearWorld == max(dem_data$Year)) {
+      return(min(dem_data$Year))
+    } else {
+      return(input$yearWorld + 1)
+    }
+  }
+  observeEvent(input$play3, {
+    session3$timer <- reactiveTimer(100)
+    observeEvent(session3$timer(), {
+      updateSliderInput(
+        session,
+        inputId = "yearWorld",
+        label = "Year:",
+        min = min(dem_data$Year),
+        max = max(dem_data$Year),
+        value = getNextYear3(),
+        step = 1
+      )
+    })
+  })
+  observeEvent(input$stop3, {
+    session3$timer <- reactiveTimer(Inf)
+  })
 }
 
 # Run the application----
