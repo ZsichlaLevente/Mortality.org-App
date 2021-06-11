@@ -36,15 +36,67 @@ ui <- navbarPage(
     "Description",
     sidebarLayout(
       sidebarPanel(
-        p("Contact: Soon...")
+        h2("Contact:"),
+        div(p(strong("Author:"),"Levente Zsichla"),
+            p(strong("Email:"),"zsichla.levente@gmail.com"),
+            p(strong("Institution:"),"Eotvos Lorand University, Budapest, Hungary"),
+            p(strong("Status:"),"Biology bachelor student"),
+            p(strong("Code available at:"),a(href="https://github.com/ZsichlaLevente/Mortality.org-App","GitHub")),
+            p(strong("Dataset last updated:"),"2021.06.11."),
+            p(tags$i("If you have problems or suggestions, please contact me by email or through GitHub!")))
       ),
       mainPanel(
-        p("Features: Soon...")
+        h1("Use and Features"),
+        p("This application provides useful and simple interactive visualizations to the detailed demographic data available at", a(href="https://www.mortality.org/","The Human Mortality Database (HMD)"),". Due to the size of the database I could not make the app synchronized with the HMD. I would recommend you to check the date of the last update of the visualized data and contact me or refresh it locally on your computer by running the codes that are shared in my GitHub repository."),
+        p("You can download the selected data table for one specific country and all of the generated graphs. You can also play simple animations in the 'Single country' and 'World map' sections."),
+        h2("Visualization options:"),
+        tags$ul(
+          tags$li(
+            h3("Single country visualizations"),
+            tags$ul(
+              tags$li("Age pyramid"),
+              tags$li("Life expectancy at birth"),
+              tags$li("Number of births"),
+              tags$li("Death pyramid"),
+              tags$li("Base mortality"),
+              tags$li("Remaining life expectancy"),
+              tags$li("Frailty matrix",tags$i("(part of a sideproject)")),
+              tags$li("Internal mortality",tags$i("(part of a sideproject)"))
+            )
+          ),
+          tags$li(
+            h3("Comparison of two countries"),
+            tags$ul(
+              tags$li("Age pyramid"),
+              tags$li("Life expectancy at birth"),
+              tags$li("Number of births"),
+              tags$li("Death pyramid"),
+              tags$li("Base mortality"),
+              tags$li("Remaining life expectancy")
+            )
+          ),
+          tags$li(
+            h3("World map"),
+            tags$ul(
+              tags$li("Total population"),
+              tags$li("Total deaths per million"),
+              tags$li("Male deaths per million"),
+              tags$li("Female deaths per million"),
+              tags$li("Male : Female ratio"),
+              tags$li("Life expectancy"),
+              tags$li("Male life expectancy"),
+              tags$li("Female life expectancy"),
+              tags$li("Total births per million"),
+              tags$li("Male births per million"),
+              tags$li("Female births per million")
+            )
+          ),
+        )
       )
     )
   ),
   tabPanel(
-    "One country visualization",
+    "Single country",
     sidebarLayout(
       sidebarPanel(
         selectInput("plotType",
@@ -73,7 +125,7 @@ ui <- navbarPage(
     )
   ),
   tabPanel(
-    "Comparison of 2 countries",
+    "Comparison",
     sidebarLayout(
       sidebarPanel(
         selectInput("plotType21",
@@ -961,7 +1013,8 @@ server <- function(input, output, session) {
         legend.position = "bottom",
         panel.border = element_blank(),
         strip.background = element_rect(fill = "white", colour = "white"),
-        legend.title = element_text(size = 14)
+        legend.title = element_text(size = 14),
+        legend.text=element_text(size=7)
       )
     }
 
